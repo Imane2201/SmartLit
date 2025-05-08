@@ -44,18 +44,23 @@ class LangChainModel:
         Analyze an article abstract and extract structured information
         """
         prompt = """
-        Analyze the following academic article abstract and extract the key information.
-        Focus on identifying:
-        - The main objective of the research
-        - The methodology used
-        - Key variables studied
-        - Type of risk discussed
-        - Level of analysis (e.g., firm, industry, country)
-        - Main findings
-        - Implications for research or practice
-        - Limitations of the study
-        
-        Provide a structured analysis in JSON format.
+        First, if the abstract is not in English, translate it to English.
+        Then, conduct a comprehensive academic analysis of the research article abstract. Extract and synthesize key information using established research analysis frameworks.
+
+        Systematically identify and elaborate on:
+        - The main objective of the research (including research questions or hypotheses if present)
+        - The methodological approach (including research design, data collection methods, analytical techniques)
+        - Key variables studied (both dependent and independent variables, control variables if mentioned)
+        - Type of risk discussed (categorize according to standard risk classification frameworks)
+        - Level of analysis (e.g., firm-level, industry-level, country-level, multi-level analysis)
+        - Main findings (including statistical significance and effect sizes if mentioned)
+        - Theoretical and practical implications (contributions to literature and recommendations for practitioners)
+        - Limitations of the study (methodological constraints, generalizability issues, potential biases)
+
+        Important: If the original abstract was not in English, ensure all analysis is done on the English translation.
+
+        Ensure your analysis maintains academic rigor and follows systematic review principles.
+        Structure your response in a clear JSON format, with detailed explanations for each component in English.
         """
         
         return await self.generate(
