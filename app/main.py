@@ -20,6 +20,11 @@ async def startup_event():
     # Initialize the Google Sheet with headers
     sheets_handler.initialize_sheet()
 
+# Add a root endpoint for health check
+@app.get("/")
+async def root():
+    return {"status": "ok", "message": "API is running"}
+
 @app.post("/search_articles")
 async def search_articles(topic: str):
     # Search for articles
