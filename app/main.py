@@ -34,7 +34,10 @@ async def search_articles(topic: str):
     for article in articles:
         if article["abstract"]:
             # Analyze article - note the await here
-            analysis = await article_analyzer.analyze(article["abstract"])
+            analysis, token_usage = await article_analyzer.analyze(article["abstract"])
+            
+            # Print token usage
+            print(f"Token usage for article '{article['title']}': {json.dumps(token_usage, indent=2)}")
             
             # Combine metadata with analysis
             full_article = {**article, **analysis}
@@ -44,4 +47,4 @@ async def search_articles(topic: str):
     if results:
         sheets_handler.append_articles(results)
     
-    return results 
+    return results
