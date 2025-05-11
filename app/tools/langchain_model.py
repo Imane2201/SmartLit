@@ -1,5 +1,5 @@
-from typing import Optional, Dict, Any
-from langchain_openai import AzureChatOpenAI
+from typing import Optional, Dict, Any, Tuple
+from openai import AsyncAzureOpenAI
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from pydantic import BaseModel
@@ -17,31 +17,48 @@ class ArticleAnalysisSchema(BaseModel):
 
 class LangChainModel:
     def __init__(self):
-        self.base_model = AzureChatOpenAI(
-            openai_api_key=settings.AZURE_OPENAI_API_KEY,
+        self.client = AsyncAzureOpenAI(
+            api_version=settings.AZURE_OPENAI_API_VERSION,
             azure_endpoint=settings.AZURE_OPENAI_API_ENDPOINT,
-            deployment_name=settings.AZURE_OPENAI_DEPLOYMENT_NAME,
-            openai_api_version=settings.AZURE_OPENAI_API_VERSION,
-            model_name=settings.AZURE_OPENAI_MODEL_NAME,
+            api_key=settings.AZURE_OPENAI_API_KEY,
         )
 
-    async def generate(self, input: str, prompt: str, schema: Optional[BaseModel] = None) -> Dict[str, Any]:
+    async def generate(self, input: str, prompt: str, schema: Optional[BaseModel] = None) -> Tuple[Dict[str, Any], Dict[str, int]]:
         """
         Generate a response with optional schema validation using JsonOutputParser
+        Returns tuple of (response, token_usage)
         """
         parser = JsonOutputParser(pydantic_object=schema)
-        prompt_template = PromptTemplate(
-            template="Answer the user query.\n{format_instructions}\n{query}\n{prompt}\n",
-            input_variables=["query", "prompt"],
-            partial_variables={"format_instructions": parser.get_format_instructions()},
-        )
-        chain = prompt_template | self.base_model | parser
-        response = await chain.ainvoke({"query": input, "prompt": prompt})
-        return response
+        format_instructions = parser.get_format_instructions()
+        
+        messages = [
+            {"role": "system", "content": format_instructions},
+            {"role": "user", "content": f"{input}\n{prompt}"}
+        ]
 
-    async def analyze_article(self, abstract: str) -> Dict[str, Any]:
+        response = await self.client.chat.completions.create(
+            messages=messages,
+            model=settings.AZURE_OPENAI_DEPLOYMENT_NAME,
+            temperature=0,  # Lower temperature for more consistent structured output
+        )
+
+        # Extract token usage
+        token_usage = {
+            "prompt_tokens": response.usage.prompt_tokens,
+            "completion_tokens": response.usage.completion_tokens,
+            "total_tokens": response.usage.total_tokens
+        }
+
+        # Parse the response content
+        content = response.choices[0].message.content
+        parsed_response = parser.parse(content)
+        
+        return parsed_response, token_usage
+
+    async def analyze_article(self, abstract: str) -> Tuple[Dict[str, Any], Dict[str, int]]:
         """
         Analyze an article abstract and extract structured information
+        Returns tuple of (analysis_result, token_usage)
         """
         prompt = """
         First, if the abstract is not in English, translate it to English.
@@ -67,4 +84,4 @@ class LangChainModel:
             input=abstract,
             prompt=prompt,
             schema=ArticleAnalysisSchema
-        ) 
+        )
