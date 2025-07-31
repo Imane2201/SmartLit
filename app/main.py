@@ -33,6 +33,10 @@ class SearchFilters(BaseModel):
     journal: Optional[str] = None
     level_of_analysis: Optional[str] = None
 
+class SearchArticlesRequest(BaseModel):
+    topic: str
+    filters: Optional[SearchFilters] = None
+
 app = FastAPI(title="SmartLit API", description="Academic Literature Analysis with RAG", version="2.0.0")
 crossref_tool = CrossRefSearchTool()
 article_analyzer = ArticleAnalyzer()
@@ -61,15 +65,12 @@ async def root():
     return {"status": "ok", "message": "API is running"}
 
 @app.post("/search_articles")
-async def search_articles(
-    topic: str,
-    filters: Optional[SearchFilters] = None
-):
+async def search_articles(request: SearchArticlesRequest):
     """
     Search for articles and analyze them, storing results in both Google Sheets and vector store
     """
     # Search for articles
-    articles = crossref_tool._run(topic)
+    articles = crossref_tool._run(request.topic)
     
     results = []
     for article in articles:
@@ -84,16 +85,16 @@ async def search_articles(
             full_article = {**article, **analysis}
             
             # Apply filters if provided
-            if filters:
-                if filters.year_from and article.get('year') and article['year'] < filters.year_from:
+            if request.filters:
+                if request.filters.year_from and article.get('year') and article['year'] < request.filters.year_from:
                     continue
-                if filters.year_to and article.get('year') and article['year'] > filters.year_to:
+                if request.filters.year_to and article.get('year') and article['year'] > request.filters.year_to:
                     continue
-                if filters.risk_type and analysis.get('risk_type') != filters.risk_type:
+                if request.filters.risk_type and analysis.get('risk_type') != request.filters.risk_type:
                     continue
-                if filters.journal and article.get('journal') != filters.journal:
+                if request.filters.journal and article.get('journal') != request.filters.journal:
                     continue
-                if filters.level_of_analysis and analysis.get('level_of_analysis') != filters.level_of_analysis:
+                if request.filters.level_of_analysis and analysis.get('level_of_analysis') != request.filters.level_of_analysis:
                     continue
             
             results.append(full_article)
@@ -109,8 +110,8 @@ async def search_articles(
     return {
         "articles": results,
         "total_found": len(results),
-        "topic": topic,
-        "filters_applied": filters.dict() if filters else None
+        "topic": request.topic,
+        "filters_applied": request.filters.dict() if request.filters else None
     }
 
 @app.post("/query_knowledge_base")

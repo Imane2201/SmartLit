@@ -131,7 +131,7 @@ def search_articles_tab():
             if filters:
                 data["filters"] = filters
                 
-            results = call_api("/search_articles", method="POST", data={"topic": topic, "filters": filters if filters else None})
+            results = call_api("/search_articles", method="POST", data=data)
             
             if results and "articles" in results:
                 articles = results["articles"]
